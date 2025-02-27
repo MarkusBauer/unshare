@@ -3,7 +3,7 @@ use std::os::unix::io::RawFd;
 
 use nix::Error;
 use nix::unistd::Pid;
-use nix::sys::wait::waitpid;
+use nix::sys::wait::{waitpid, WaitPidFlag};
 use nix::sys::signal::{Signal, SIGKILL, kill};
 use nix::errno::Errno::EINTR;
 use libc::pid_t;
@@ -29,29 +29,41 @@ impl Child {
         if let Some(x) = self.status {
             return Ok(x);
         }
-        let status = self._wait()?;
+        let status = self._wait(None)?.unwrap();
         self.status = Some(status);
         Ok(status)
     }
 
+    /// Check if the child completed and return exit status
+    pub fn try_wait(&mut self) -> Result<Option<ExitStatus>, io::Error> {
+        if let Some(x) = self.status {
+            return Ok(Some(x));
+        }
+        let status = self._wait(Some(WaitPidFlag::WNOHANG))?;
+        if let Some(x) = status {
+            self.status = Some(x);
+        }
+        Ok(status)
+    }
 
-    fn _wait(&mut self) -> Result<ExitStatus, io::Error> {
+
+    fn _wait(&mut self, options: Option<WaitPidFlag>) -> Result<Option<ExitStatus>, io::Error> {
         use nix::sys::wait::WaitStatus::*;
         loop {
-            match waitpid(Some(Pid::from_raw(self.pid)), None) {
+            match waitpid(Some(Pid::from_raw(self.pid)), options) {
                 Ok(PtraceEvent(..)) => {}
                 Ok(PtraceSyscall(..)) => {}
                 Ok(Exited(x, status)) => {
                     assert!(i32::from(x) == self.pid);
-                    return Ok(ExitStatus::Exited(status as i8));
+                    return Ok(Some(ExitStatus::Exited(status as i8)));
                 }
                 Ok(Signaled(x, sig, core)) => {
                     assert!(i32::from(x) == self.pid);
-                    return Ok(ExitStatus::Signaled(sig, core));
+                    return Ok(Some(ExitStatus::Signaled(sig, core)));
                 }
                 Ok(Stopped(_, _)) => unreachable!(),
                 Ok(Continued(_)) => unreachable!(),
-                Ok(StillAlive) => unreachable!(),
+                Ok(StillAlive) => return Ok(None),
                 Err(Error::Sys(EINTR)) => continue,
                 Err(Error::InvalidPath) => unreachable!(),
                 Err(Error::InvalidUtf8) => unreachable!(),
