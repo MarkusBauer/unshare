@@ -11,6 +11,7 @@ use libc::{SIG_DFL, SIG_SETMASK};
 
 use crate::run::{ChildInfo, MAX_PID_LEN};
 use crate::error::ErrorCode as Err;
+use crate::fakeroot::build_fakeroot;
 
 // And at this point we've reached a special time in the life of the
 // child. The child must now be considered hamstrung and unable to
@@ -140,6 +141,12 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
     child.cfg.uid.as_ref().map(|&uid| {
         if libc::setuid(uid) != 0 {
             fail(Err::SetUser, epipe);
+        }
+    });
+
+    child.cfg.fake_root_base.as_ref().map(|base| {
+        if !build_fakeroot(base, child.cfg.fake_root_proc.as_ref(), child.cfg.fake_root_mounts.as_ref()) {
+            fail(Err::ChangeRoot, epipe);
         }
     });
 

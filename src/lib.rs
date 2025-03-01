@@ -50,6 +50,7 @@ mod wait;
 mod stdio;
 mod debug;
 mod zombies;
+mod fakeroot;
 
 pub use crate::error::Error;
 pub use crate::status::ExitStatus;
