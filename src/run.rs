@@ -9,7 +9,7 @@ use std::os::unix::io::{RawFd, AsRawFd};
 use std::path::{Path, PathBuf};
 use std::ptr;
 
-use libc::{c_char, close};
+use libc::{__rlimit_resource_t, c_char, close, rlim_t};
 use nix;
 use nix::errno::Errno::EINTR;
 use nix::fcntl::{fcntl, FcntlArg, open};
@@ -52,6 +52,7 @@ pub struct ChildInfo<'a> {
     pub pid_env_vars: &'a [(usize, usize)],
     pub keep_caps: &'a Option<[u32; 2]>,
     pub pre_exec: &'a Option<Box<dyn Fn() -> Result<(), io::Error>>>,
+    pub rlimits: &'a [(__rlimit_resource_t, rlim_t)],
 }
 
 fn raw_with_null(arr: &Vec<CString>) -> Vec<*const c_char> {
@@ -258,6 +259,7 @@ impl Command {
                 pid_env_vars: &pid_env_vars,
                 keep_caps: &self.keep_caps,
                 pre_exec: &self.pre_exec,
+                rlimits: &self.rlimits,
             };
             child::child_after_clone(&child_info);
         }), &mut nstack[..], self.config.namespaces, Some(SIGCHLD as i32)))?;
