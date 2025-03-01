@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::io;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
-
+use libc::{__rlimit_resource_t, rlim_t};
 use nix::sys::signal::{Signal};
 
 use crate::ffi_util::ToCString;
@@ -292,5 +292,13 @@ impl Command {
             buf[(item >> 5) as usize] |= 1 << (item & 31);
         }
         self.keep_caps = Some(buf);
+    }
+
+    /// Set resource limits (rlimit / ulimit)
+    pub fn set_rlimit(&mut self, resource: __rlimit_resource_t, limit: rlim_t)
+        -> &mut Command
+    {
+        self.rlimits.push((resource, limit));
+        self
     }
 }

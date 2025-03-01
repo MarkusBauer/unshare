@@ -22,6 +22,7 @@ pub enum ErrorCode {
     CapSet = 13,
     PreExec = 14,
     SetGroupsDeny = 15,
+    RLimit = 16,
 }
 
 /// Error runnning process
@@ -95,7 +96,9 @@ pub enum Error {
     /// Before exec callback error
     PreExec(i32),
     /// Writing /proc/self/setgroups < deny failed
-    SetGroupsDeny(i32)
+    SetGroupsDeny(i32),
+    /// Error when calling setrlimit syscall
+    SetRLimit(i32),
 }
 
 impl Error {
@@ -124,6 +127,7 @@ impl Error {
             &BeforeUnfreeze(..) => None,
             &PreExec(x) => Some(x),
             &SetGroupsDeny(x) => Some(x),
+            &SetRLimit(x) => Some(x),
         }
     }
 }
@@ -152,7 +156,8 @@ impl Error {
             &CapSet(_) => "error when setting capabilities",
             &BeforeUnfreeze(_) => "error in before_unfreeze callback",
             &PreExec(_) => "error in pre_exec callback",
-            &SetGroupsDeny(_) => "error setting /proc/self/setgroups < deny"
+            &SetGroupsDeny(_) => "error setting /proc/self/setgroups < deny",
+            &SetRLimit(_) => "error setting rlimit",
         }
     }
 }
@@ -246,6 +251,7 @@ impl ErrorCode {
             C::CapSet => E::CapSet(errno),
             C::PreExec => E::PreExec(errno),
             C::SetGroupsDeny => E::SetGroupsDeny(errno),
+            C::RLimit => E::SetRLimit(errno),
         }
     }
     pub fn from_i32(code: i32, errno: i32) -> Error {

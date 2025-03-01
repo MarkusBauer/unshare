@@ -4,7 +4,7 @@ use std::ptr;
 
 use libc;
 use nix;
-use libc::{c_void, c_ulong, sigset_t, size_t};
+use libc::{c_void, c_ulong, sigset_t, size_t, rlimit};
 use libc::{kill, signal};
 use libc::{F_GETFD, F_SETFD, F_DUPFD_CLOEXEC, FD_CLOEXEC, MNT_DETACH};
 use libc::{SIG_DFL, SIG_SETMASK};
@@ -252,6 +252,13 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
         libc::pthread_sigmask(SIG_SETMASK, &sigmask, ptr::null_mut());
         for sig in 1..32 {
             signal(sig, SIG_DFL);
+        }
+    }
+
+    for &(rlim_type, rlim_value) in child.rlimits {
+        let limit = rlimit{rlim_cur: rlim_value, rlim_max: rlim_value};
+        if libc::setrlimit(rlim_type, &limit) < 0 {
+            fail(Err::RLimit, epipe);
         }
     }
 
