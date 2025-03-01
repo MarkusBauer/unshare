@@ -9,6 +9,7 @@ pub struct FakeRootMount {
     mountpoint_outer: CString,
     src: CString,
     readonly: bool,
+    is_special_fs: bool, // "src" is a filesystem type like "proc" or "tmpfs"
 }
 
 impl Command {
@@ -26,7 +27,6 @@ impl Command {
     pub fn fakeroot_enable(&mut self, base: &str) {
         self.unshare(&[Namespace::Mount]);
         self.config.fake_root_base = Some(base.to_cstring());
-        self.config.fake_root_proc = Some(format!("{}/proc", base).to_cstring());
     }
 
     /// Add an existing directory to the fakeroot.
@@ -52,23 +52,42 @@ impl Command {
             mountpoint_outer: format!("{}/{}", base, dst).to_cstring(),
             src: src.as_ref().to_cstring(),
             readonly,
+            is_special_fs: false,
+        });
+    }
+
+    /// Add a new filesystem to the fakeroot.
+    ///
+    /// fakeroot_enable() must be called first, otherwise this function will panic.
+    ///
+    /// Example usage:
+    ///   cmd.fakeroot_filesystem("tmpfs", "/tmp");
+    pub fn fakeroot_filesystem(&mut self, fstype: &str, dst: &str) {
+        let base = self
+            .config
+            .fake_root_base
+            .as_ref()
+            .expect("call fakeroot_enable() first!")
+            .to_str()
+            .unwrap();
+        self.config.fake_root_mounts.push(FakeRootMount {
+            mountpoint: dst.to_cstring(),
+            mountpoint_outer: format!("{}/{}", base, dst).to_cstring(),
+            src: fstype.to_cstring(),
+            readonly: false,
+            is_special_fs: true,
         });
     }
 }
 
 /// This syscall sequence is more or less taken from nsjail (https://github.com/google/nsjail).
-pub(crate) unsafe fn build_fakeroot(
-    base: &CString,
-    proc: Option<&CString>,
-    mountpoints: &[FakeRootMount],
-) -> bool {
+pub(crate) unsafe fn build_fakeroot(base: &CString, mountpoints: &[FakeRootMount]) -> bool {
     // define some libc constants
     let null_char = 0 as *const c_char;
     let null_void = 0 as *const c_void;
     let slash = b"/\0".as_ptr() as *const c_char;
     let dot = b".\0".as_ptr() as *const c_char;
     let tmpfs = b"tmpfs\0".as_ptr() as *const c_char;
-    let procfs = b"proc\0".as_ptr() as *const c_char;
 
     // keep all mount changes private
     libc::mkdir(base.as_ptr(), 0o777);
@@ -84,23 +103,22 @@ pub(crate) unsafe fn build_fakeroot(
     // mount directories - still read-write (because MS_BIND + MS_RDONLY are not supported)
     for mount in mountpoints {
         libc::mkdir(mount.mountpoint_outer.as_ptr(), 0o777);
+        let (src, fstype, flags) = if mount.is_special_fs {
+            (null_char, mount.src.as_ptr(), 0)
+        } else {
+            (mount.src.as_ptr(), null_char, MS_PRIVATE | MS_REC | MS_BIND)
+        };
         if libc::mount(
-            mount.src.as_ptr(),
+            src,
             mount.mountpoint_outer.as_ptr(),
-            null_char,
-            MS_PRIVATE | MS_REC | MS_BIND,
+            fstype,
+            flags,
             null_void,
         ) < 0
         {
             return false;
         }
     }
-
-    // mount new "/proc" (if available, for example: not in docker). No error if failing.
-    proc.map(|proc| {
-        libc::mkdir(proc.as_ptr(), 0o777);
-        libc::mount(null_char, proc.as_ptr(), procfs, 0, null_void);
-    });
 
     // chroot jail (try pivot_root first, use classic chroot if not available)
     if libc::syscall(libc::SYS_pivot_root, base.as_ptr(), base.as_ptr()) >= 0 {
