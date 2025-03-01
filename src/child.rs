@@ -346,7 +346,7 @@ mod ffi {
 
 #[cfg(test)]
 mod test {
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
     use crate::run::MAX_PID_LEN;
     use std::ffi::CStr;
     use super::format_pid_fixed;
@@ -370,7 +370,7 @@ mod test {
     #[test]
     fn test_random() {
         for _ in 0..100000 {
-            let x = thread_rng().gen();
+            let x = rng().random();
             if x < 0 { continue; }
             assert_eq!(fmt_normal(x), format!("{}", x));
         }

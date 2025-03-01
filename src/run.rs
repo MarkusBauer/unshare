@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::env::current_dir;
 use std::ffi::CString;
-use std::fs::File;
 use std::io::{self, Read, Write};
 use std::iter::repeat;
 use std::os::unix::ffi::{OsStrExt};
@@ -46,7 +45,7 @@ pub struct ChildInfo<'a> {
     pub error_pipe: RawFd,
     pub fds: &'a [(RawFd, RawFd)],
     /// This map may only be used for lookup but not for iteration!
-    pub fd_lookup: &'a HashMap<RawFd, RawFd>,
+    // pub fd_lookup: &'a HashMap<RawFd, RawFd>,
     pub close_fds: &'a [(RawFd, RawFd)],
     pub setns_namespaces: &'a [(CloneFlags, RawFd)],
     pub pid_env_vars: &'a [(usize, usize)],
@@ -269,7 +268,7 @@ impl Command {
                 wakeup_pipe: wakeup_rd.take().unwrap().into_fd(),
                 error_pipe: errpipe_wr.take().unwrap().into_fd(),
                 fds: &fds,
-                fd_lookup: &int_fds,
+                // fd_lookup: &int_fds,
                 close_fds: &close_fds,
                 setns_namespaces: &setns_ns,
                 pid_env_vars: &pid_env_vars,
