@@ -87,14 +87,14 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
         // first configure setgroups to "deny"
         let fd = libc::openat(libc::AT_FDCWD, b"/proc/self/setgroups\0".as_ptr() as *const i8, libc::O_WRONLY);
         if fd < 0 {
-            fail(Err::SetIdMap, epipe);
+            fail(Err::SetGroupsDeny, epipe);
         }
         let deny = b"deny";
         if libc::write(fd, deny.as_ptr() as *const libc::c_void, deny.len()) < 0 {
-            fail(Err::SetIdMap, epipe);
+            fail(Err::SetGroupsDeny, epipe);
         }
         if libc::close(fd) < 0 {
-            fail(Err::SetIdMap, epipe);
+            fail(Err::SetGroupsDeny, epipe);
         }
 
         // then write gid_map
