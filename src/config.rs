@@ -6,6 +6,7 @@ use nix::sys::signal::{Signal, SIGKILL};
 use nix::sched::CloneFlags;
 use libc::{uid_t, gid_t};
 
+use crate::fakeroot::{FakeRootMount};
 use crate::idmap::{UidMap, GidMap};
 use crate::namespace::Namespace;
 use crate::stdio::Closing;
@@ -23,6 +24,9 @@ pub struct Config {
     pub restore_sigmask: bool,
     pub make_group_leader: bool,
     // TODO(tailhook) session leader
+    pub fake_root_base: Option<CString>,
+    pub fake_root_proc: Option<CString>,
+    pub fake_root_mounts: Vec<FakeRootMount>,
 }
 
 impl Default for Config {
@@ -38,6 +42,9 @@ impl Default for Config {
             setns_namespaces: HashMap::new(),
             restore_sigmask: true,
             make_group_leader: false,
+            fake_root_base: None,
+            fake_root_mounts: Vec::new(),
+            fake_root_proc: None,
         }
     }
 }
