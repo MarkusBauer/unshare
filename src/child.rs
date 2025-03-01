@@ -166,7 +166,7 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
     });
 
     child.cfg.gid.as_ref().map(|&gid| {
-        if libc::setgid(gid) != 0 {
+        if libc::syscall(libc::SYS_setgid, gid as c_ulong) != 0 {
             fail(Err::SetUser, epipe);
         }
     });
@@ -178,7 +178,7 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
     });
 
     child.cfg.uid.as_ref().map(|&uid| {
-        if libc::setuid(uid) != 0 {
+        if libc::syscall(libc::SYS_setuid, uid as c_ulong) != 0 {
             fail(Err::SetUser, epipe);
         }
     });
