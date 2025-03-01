@@ -13,6 +13,8 @@ fn main() {
     cmd.fakeroot_mount("/etc", "/etc", true);
     cmd.fakeroot_mount("/lib", "/lib", true);
     cmd.fakeroot_mount("/lib64", "/lib64", true);
+    cmd.fakeroot_filesystem("proc", "/proc");
+    cmd.fakeroot_filesystem("tmpfs", "/tmp");
     cmd.fakeroot_mount("/usr", "/usr", true);
     cmd.current_dir("/");
 
