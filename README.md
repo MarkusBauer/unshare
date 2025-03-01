@@ -1,3 +1,5 @@
+This fork includes most of the pending PRs from the original repo and includes new features (rlimits, fakeroot).
+
 Rust Unshare
 ============
 
