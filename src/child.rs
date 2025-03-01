@@ -185,7 +185,9 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
     });
 
     child.cfg.fake_root_base.as_ref().map(|base| {
-        build_fakeroot(base, child.cfg.fake_root_proc.as_ref(), child.cfg.fake_root_mounts.as_ref());
+        if !build_fakeroot(base, child.cfg.fake_root_proc.as_ref(), child.cfg.fake_root_mounts.as_ref()) {
+            fail(Err::ChangeRoot, epipe);
+        }
     });
 
     child.keep_caps.as_ref().map(|caps| {
