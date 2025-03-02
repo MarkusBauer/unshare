@@ -26,6 +26,8 @@ pub struct Config {
     // TODO(tailhook) session leader
     pub fake_root_base: Option<CString>,
     pub fake_root_mounts: Vec<FakeRootMount>,
+    pub fake_root_mkdirs: Vec<CString>,
+    pub fake_root_touchs: Vec<CString>,
 }
 
 impl Default for Config {
@@ -43,6 +45,8 @@ impl Default for Config {
             make_group_leader: false,
             fake_root_base: None,
             fake_root_mounts: Vec::new(),
+            fake_root_mkdirs: Vec::new(),
+            fake_root_touchs: Vec::new(),
         }
     }
 }

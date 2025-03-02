@@ -145,7 +145,10 @@ pub unsafe fn child_after_clone(child: &ChildInfo) -> ! {
     });
 
     child.cfg.fake_root_base.as_ref().map(|base| {
-        if !build_fakeroot(base, child.cfg.fake_root_mounts.as_ref()) {
+        if !build_fakeroot(base,
+                           child.cfg.fake_root_mkdirs.as_ref(),
+                           child.cfg.fake_root_touchs.as_ref(),
+                           child.cfg.fake_root_mounts.as_ref()) {
             fail(Err::ChangeRoot, epipe);
         }
     });

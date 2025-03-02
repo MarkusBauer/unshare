@@ -1,6 +1,8 @@
 use crate::ffi_util::ToCString;
 use crate::{Command, Namespace};
-use libc::{MNT_DETACH, MS_BIND, MS_PRIVATE, MS_RDONLY, MS_REC, MS_REMOUNT};
+use libc::{
+    MNT_DETACH, MS_BIND, MS_PRIVATE, MS_RDONLY, MS_REC, MS_REMOUNT, O_CLOEXEC, O_CREAT, O_RDONLY,
+};
 use std::ffi::{c_char, c_void, CString};
 use std::path::Path;
 
@@ -29,6 +31,16 @@ impl Command {
         self.config.fake_root_base = Some(base.to_cstring());
     }
 
+    fn fakeroot_mkdir(&mut self, base: &str, dir: &Path) {
+        dir.parent().map(|parent_dir| {
+            if dir != parent_dir {
+                self.fakeroot_mkdir(base, parent_dir);
+                let outer_dir = format!("{}/{}", base, dir.to_str().unwrap());
+                self.config.fake_root_mkdirs.push(outer_dir.to_cstring());
+            }
+        });
+    }
+
     /// Add an existing directory to the fakeroot.
     ///
     /// fakeroot_enable() must be called first, otherwise this function will panic.
@@ -46,7 +58,39 @@ impl Command {
             .as_ref()
             .expect("call fakeroot_enable() first!")
             .to_str()
-            .unwrap();
+            .unwrap()
+            .to_owned();
+        self.fakeroot_mkdir(base.as_ref(), Path::new(dst));
+        self.config.fake_root_mounts.push(FakeRootMount {
+            mountpoint: dst.to_cstring(),
+            mountpoint_outer: format!("{}/{}", base, dst).to_cstring(),
+            src: src.as_ref().to_cstring(),
+            readonly,
+            is_special_fs: false,
+        });
+    }
+
+    /// Add an existing file or device to the fakeroot.
+    ///
+    /// fakeroot_enable() must be called first, otherwise this function will panic.
+    ///
+    /// Example usage:
+    ///   cmd.fakeroot_mount_file("/dev/urandom", "/dev/urandom", false);
+    pub fn fakeroot_mount_file<P: AsRef<Path>>(&mut self, src: P, dst: &str, readonly: bool) {
+        let base = self
+            .config
+            .fake_root_base
+            .as_ref()
+            .expect("call fakeroot_enable() first!")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        Path::new(dst).parent().map(|parent_dir| {
+            self.fakeroot_mkdir(base.as_ref(), parent_dir);
+        });
+        self.config
+            .fake_root_touchs
+            .push(format!("{}/{}", base, dst).to_cstring());
         self.config.fake_root_mounts.push(FakeRootMount {
             mountpoint: dst.to_cstring(),
             mountpoint_outer: format!("{}/{}", base, dst).to_cstring(),
@@ -69,7 +113,9 @@ impl Command {
             .as_ref()
             .expect("call fakeroot_enable() first!")
             .to_str()
-            .unwrap();
+            .unwrap()
+            .to_owned();
+        self.fakeroot_mkdir(base.as_ref(), Path::new(dst));
         self.config.fake_root_mounts.push(FakeRootMount {
             mountpoint: dst.to_cstring(),
             mountpoint_outer: format!("{}/{}", base, dst).to_cstring(),
@@ -81,7 +127,12 @@ impl Command {
 }
 
 /// This syscall sequence is more or less taken from nsjail (https://github.com/google/nsjail).
-pub(crate) unsafe fn build_fakeroot(base: &CString, mountpoints: &[FakeRootMount]) -> bool {
+pub(crate) unsafe fn build_fakeroot(
+    base: &CString,
+    mkdirs: &[CString],
+    touchs: &[CString],
+    mountpoints: &[FakeRootMount],
+) -> bool {
     // define some libc constants
     let null_char = 0 as *const c_char;
     let null_void = 0 as *const c_void;
@@ -100,9 +151,19 @@ pub(crate) unsafe fn build_fakeroot(base: &CString, mountpoints: &[FakeRootMount
         return false;
     }
 
+    // create mount points
+    for dir in mkdirs {
+        libc::mkdir(dir.as_ptr(), 0o777);
+    }
+    for file in touchs {
+        let fd = libc::open(file.as_ptr(), O_RDONLY | O_CREAT | O_CLOEXEC);
+        if fd >= 0 {
+            libc::close(fd);
+        }
+    }
+
     // mount directories - still read-write (because MS_BIND + MS_RDONLY are not supported)
     for mount in mountpoints {
-        libc::mkdir(mount.mountpoint_outer.as_ptr(), 0o777);
         let (src, fstype, flags) = if mount.is_special_fs {
             (null_char, mount.src.as_ptr(), 0)
         } else {
