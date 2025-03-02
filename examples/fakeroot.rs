@@ -10,6 +10,7 @@ fn main() {
 
     cmd.fakeroot_enable("/dev/shm/sandbox_root");
     cmd.fakeroot_mount("/bin", "/bin", true);
+    cmd.fakeroot_mount_file("/dev/urandom", "/dev/urandom", false);
     cmd.fakeroot_mount("/etc", "/etc", true);
     cmd.fakeroot_mount("/lib", "/lib", true);
     cmd.fakeroot_mount("/lib64", "/lib64", true);
