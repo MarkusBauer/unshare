@@ -89,8 +89,8 @@ pub struct Command {
     pid_env_vars: HashSet<OsString>,
     keep_caps: Option<[u32; 2]>,
     rlimits: Vec<(libc::__rlimit_resource_t, libc::rlim_t)>,
-    before_unfreeze: Option<Box<dyn FnMut(u32) -> Result<(), BoxError>>>,
-    pre_exec: Option<Box<dyn Fn() -> Result<(), io::Error>>>,
+    before_unfreeze: Option<Box<dyn FnMut(u32) -> Result<(), BoxError> + Send>>,
+    pre_exec: Option<Box<dyn Fn() -> Result<(), io::Error> + Send>>,
 }
 
 /// The reference to the running child

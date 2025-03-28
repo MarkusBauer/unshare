@@ -50,7 +50,7 @@ pub struct ChildInfo<'a> {
     pub setns_namespaces: &'a [(CloneFlags, RawFd)],
     pub pid_env_vars: &'a [(usize, usize)],
     pub keep_caps: &'a Option<[u32; 2]>,
-    pub pre_exec: &'a Option<Box<dyn Fn() -> Result<(), io::Error>>>,
+    pub pre_exec: &'a Option<Box<dyn Fn() -> Result<(), io::Error> + Send>>,
     pub uid_maps: &'a [u8],
     pub gid_maps: &'a [u8],
     pub rlimits: &'a [(__rlimit_resource_t, rlim_t)],

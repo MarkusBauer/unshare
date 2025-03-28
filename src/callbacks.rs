@@ -21,7 +21,7 @@ impl Command {
     ///
     pub fn before_unfreeze(
         &mut self,
-        f: impl FnMut(u32) -> Result<(), BoxError> + 'static,
+        f: impl FnMut(u32) -> Result<(), BoxError> + Send + 'static,
     ) -> &mut Self {
         self.before_unfreeze = Some(Box::new(f));
         self
