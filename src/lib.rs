@@ -52,6 +52,11 @@ mod debug;
 mod zombies;
 mod fakeroot;
 
+#[cfg(feature = "async")]
+mod async_wait;
+#[cfg(feature = "async")]
+pub use crate::async_wait::wait_async;
+
 pub use crate::error::Error;
 pub use crate::status::ExitStatus;
 pub use crate::stdio::{Stdio, Fd};

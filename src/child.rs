@@ -348,7 +348,7 @@ mod ffi {
         pub inheritable_s1: u32,
     }
 
-    extern {
+    extern "C" {
         pub fn pivot_root(new_root: *const c_char, put_old: *const c_char)
             -> c_int;
     }
